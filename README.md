@@ -1,80 +1,70 @@
 # Crescent Foods 🌙
+### Lunch ordering for Crescent Public School
 
-Lunch ordering website for Crescent Public School.
-Parents/students sign in with Google, add food, enter student name, class and division, and confirm. Admins see every order, the kitchen summary and the total cash to collect.
+Order your child's lunch from your phone in under a minute. No more morning rush, and no need to tell the class teacher.
 
-Plain HTML, CSS and JavaScript. No build step. Hosted free on GitHub Pages, with Firebase for Google login and order storage.
+---
 
-## Files
+## Menu
 
-| File | Purpose |
+| Item | Price |
 |---|---|
-| `index.html`, `app.js` | Parent / student ordering flow |
-| `admin.html`, `admin.js` | Admin order viewer |
-| `styles.css` | All styling and animations (colours are in `:root`) |
-| `store.js` | Login and order storage (Firebase, or demo mode) |
-| `firebase-config.js` | Your Firebase keys, admin emails, menu, order cutoff time |
+| Half Biriyani | ₹100 |
+| Full Biriyani | ₹150 |
+| Meals | ₹60 |
 
-## 1. Try it locally (demo mode)
+Payment is in cash at school.
 
-1. Open the folder in VS Code.
-2. Install the **Live Server** extension, right-click `index.html`, choose **Open with Live Server**.
-3. Until Firebase is configured, sign-in is simulated and orders are saved only in your browser. For the admin page use the email in `ADMIN_EMAILS` (`admin@crescentschool.com`).
+---
 
-## 2. Set up Firebase (real Google login + shared orders)
+## For Parents and Students: How to Order
 
-1. Go to https://console.firebase.google.com and create a project.
-2. **Build > Authentication > Get started > Sign-in method > Google > Enable.**
-3. **Build > Firestore Database > Create database** (production mode).
-4. **Project settings > Your apps > Web (`</>`)**: register an app and copy the config into `firebase-config.js`.
-5. Put the school admin Gmail addresses in `ADMIN_EMAILS` in `firebase-config.js`.
-6. **Firestore > Rules**, paste this (replace the email list with the same admins) and publish:
+1. **Open the website** on your phone or computer.
+2. **Tap "Continue with Google"** and sign in with your Gmail account.
+3. **Choose your food.** Tap **+ Add** on the item you want. Use **+** and **−** to change the number of plates.
+4. **A popup appears.** Tap **Proceed to checkout**, or **Add more** to keep choosing.
+5. **Fill in the details:**
+   - Student name
+   - Class
+   - Division
+6. **Tap "Confirm order"** once it appears. This button shows only after all details are filled in.
+7. **A green tick appears.** Your order is placed. Keep the amount shown ready to pay in cash at school.
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{db}/documents {
-    function isAdmin() {
-      return request.auth != null &&
-        request.auth.token.email in ['admin@crescentschool.com'];
-    }
-    match /orders/{id} {
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
-      allow read:   if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin());
-      allow update: if isAdmin();
-    }
-  }
-}
-```
+### Good to know
+- Place your order before the closing time shown at the top of the menu page.
+- Ordering for more than one child? Place a separate order for each child, using **Order again** on the confirmation screen.
+- Check the student name, class and division carefully. The food is handed out using these details.
+- Orders are placed for the day you order.
 
-The Firebase web config is not a secret. These rules are what protect the data, so do not skip step 6.
+---
 
-## 3. Host on GitHub Pages
+## For School Admin: How to View Orders
 
-1. Create a new repository on GitHub, e.g. `crescent-foods`.
-2. In the VS Code terminal, inside this folder:
+1. **Open the admin page** by adding `/admin.html` to the end of the website address.
+2. **Sign in with the school admin Gmail account.** Other accounts are not allowed in.
+3. **Pick the date** at the top. Today's date is shown by default.
 
-```
-git init
-git add .
-git commit -m "Crescent Foods website"
-git branch -M main
-git remote add origin https://github.com/YOUR-USERNAME/crescent-foods.git
-git push -u origin main
-```
+### What you will see
+- **Orders:** how many orders were placed.
+- **Plates:** the total number of plates to prepare.
+- **Total cash to collect:** the full amount for the day.
+- **Collected / Pending:** how much cash has been received so far and how much is still due.
+- **Kitchen summary:** how many Half Biriyani, Full Biriyani and Meals are needed, with amounts.
+- **Student orders:** every student's name, class and division, what they ordered, the amount and the time. The list is sorted by class.
 
-3. On GitHub: **Settings > Pages > Build and deployment > Source: Deploy from a branch > Branch: `main` / `(root)` > Save.**
-4. After a minute the site is live at `https://YOUR-USERNAME.github.io/crescent-foods/` (admin page: `/admin.html`).
-5. **Important:** in Firebase, go to **Authentication > Settings > Authorized domains > Add domain** and add `YOUR-USERNAME.github.io`. Without this, Google login will fail on the live site.
+### Handy tools
+- **Search** by student name.
+- **Filter** by class to see one class only.
+- **Collected button:** tap **Pending** next to a student once their cash is received. It turns into **✔ Collected**.
+- **CSV:** downloads the day's orders as a spreadsheet.
+- **Print:** prints the list, for example to give to the kitchen or class teachers.
 
-To update the site later: `git add . && git commit -m "update" && git push`.
+---
 
-## 4. Match the school's design
+## Need Help?
 
-Send the school home page (HTML/CSS or screenshot). Header, colours, fonts and logo will be copied into `styles.css` and the `.topbar` section of the pages.
+- **Can't sign in?** Make sure you are using a Gmail account, then try again.
+- **Ordered by mistake or entered the wrong details?** Please contact the school office.
+- **Any other problem?** Contact the school office.
 
-## Settings you may want to change
-
-- Prices and food items: `MENU` in `firebase-config.js`
-- Last ordering time, e.g. `"09:30"`: `ORDER_CUTOFF` in `firebase-config.js`
-- Payment is cash at school. The admin marks each order **Collected** on the order list.
+*Crescent Foods · Crescent Public School*
