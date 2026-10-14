@@ -1,7 +1,9 @@
 // Data layer: Firebase when configured, otherwise a localStorage demo mode.
+const FORCE_DEMO = true;   // set to false once Firebase is really set up
+
 const Store = (() => {
   const cfg = window.FIREBASE_CONFIG || {};
-  const live = !!cfg.apiKey && !cfg.apiKey.startsWith("YOUR_") && typeof firebase !== "undefined";
+  const live = !FORCE_DEMO && !!cfg.apiKey && !cfg.apiKey.startsWith("YOUR_") && typeof firebase !== "undefined";
   let auth, db;
   if (live) {
     firebase.initializeApp(cfg);
@@ -13,7 +15,7 @@ const Store = (() => {
   const idToEmail = (id) => id.trim().toLowerCase() + "@" + STUDENT_DOMAIN;
 
   // ---------- DEMO STUDENT LIST (static data) ----------
-  // Used only when Firebase is not configured. Add or edit students here.
+  // Used only in demo mode. Add or edit students here.
   const STUDENTS = [
     { id: "CPS001", password: "pass001", name: "Aisha Fathima" },
     { id: "CPS002", password: "pass002", name: "Rahul Nair" },
