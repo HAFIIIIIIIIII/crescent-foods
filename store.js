@@ -9,6 +9,9 @@ const Store = (() => {
     db = firebase.firestore();
   }
 
+  const STUDENT_DOMAIN = "crescent.school"; // Student ID becomes <id>@crescent.school in Firebase
+  const idToEmail = (id) => id.trim().toLowerCase() + "@" + STUDENT_DOMAIN;
+
   const todayKey = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
   const isAdmin = (u) =>
     !!u && (window.ADMIN_EMAILS || []).map((e) => e.toLowerCase()).includes((u.email || "").toLowerCase());
@@ -30,12 +33,30 @@ const Store = (() => {
       cb(demoUser());
     },
 
-    async signIn() {
+    // signIn(studentId, password)  -> student login
+    // signIn()                     -> admin login (Google in live mode, prompt in demo mode)
+    async signIn(studentId, password) {
+      // ----- Student ID + password -----
+      if (studentId !== undefined) {
+        if (!studentId.trim() || !password) throw new Error("Missing Student ID or password");
+        if (live) {
+          await auth.signInWithEmailAndPassword(idToEmail(studentId), password);
+          return;
+        }
+        // Demo mode: accept any Student ID and password
+        const email = idToEmail(studentId);
+        const user = { uid: "demo-" + email, email, displayName: studentId.trim().toUpperCase() };
+        localStorage.setItem("cf_user", JSON.stringify(user));
+        demoAuthCb && demoAuthCb(user);
+        return;
+      }
+
+      // ----- Admin login (no arguments) -----
       if (live) {
         await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
         return;
       }
-      const email = prompt("DEMO MODE - enter a Gmail address to sign in.\n(Admin demo: " + (window.ADMIN_EMAILS || [])[0] + ")");
+      const email = prompt("DEMO MODE - enter the admin email to sign in.\n(Admin demo: " + (window.ADMIN_EMAILS || [])[0] + ")");
       if (!email) return;
       const user = { uid: "demo-" + email.toLowerCase(), email: email.trim(), displayName: email.split("@")[0] };
       localStorage.setItem("cf_user", JSON.stringify(user));
@@ -63,26 +84,3 @@ const Store = (() => {
       save(all);
       return id;
     },
-
-    watchOrders(date, cb) {
-      if (live) {
-        return db.collection("orders").where("date", "==", date).onSnapshot((snap) =>
-          cb(snap.docs.map((d) => {
-            const data = d.data();
-            return { id: d.id, ...data, createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : new Date() };
-          }))
-        );
-      }
-      const emit = () => cb(load().filter((o) => o.date === date).map((o) => ({ ...o, createdAt: new Date(o.createdAt) })));
-      emit();
-      window.addEventListener("cf-orders", emit);
-      window.addEventListener("storage", emit);
-      return () => { window.removeEventListener("cf-orders", emit); window.removeEventListener("storage", emit); };
-    },
-
-    async setPaid(id, paid) {
-      if (live) return db.collection("orders").doc(id).update({ paid });
-      save(load().map((o) => (o.id === id ? { ...o, paid } : o)));
-    }
-  };
-})();
