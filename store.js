@@ -9,8 +9,18 @@ const Store = (() => {
     db = firebase.firestore();
   }
 
-  const STUDENT_DOMAIN = "crescent.school"; // Student ID becomes <id>@crescent.school in Firebase
+  const STUDENT_DOMAIN = "crescent.school";
   const idToEmail = (id) => id.trim().toLowerCase() + "@" + STUDENT_DOMAIN;
+
+  // ---------- DEMO STUDENT LIST (static data) ----------
+  // Used only when Firebase is not configured. Add or edit students here.
+  const STUDENTS = [
+    { id: "CPS001", password: "pass001", name: "Aisha Fathima" },
+    { id: "CPS002", password: "pass002", name: "Rahul Nair" },
+    { id: "CPS003", password: "pass003", name: "Fatima Zahra" },
+    { id: "CPS004", password: "pass004", name: "Arjun Menon" },
+    { id: "CPS005", password: "pass005", name: "Meera Krishnan" }
+  ];
 
   const todayKey = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
   const isAdmin = (u) =>
@@ -39,13 +49,20 @@ const Store = (() => {
       // ----- Student ID + password -----
       if (studentId !== undefined) {
         if (!studentId.trim() || !password) throw new Error("Missing Student ID or password");
+
         if (live) {
           await auth.signInWithEmailAndPassword(idToEmail(studentId), password);
           return;
         }
-        // Demo mode: accept any Student ID and password
-        const email = idToEmail(studentId);
-        const user = { uid: "demo-" + email, email, displayName: studentId.trim().toUpperCase() };
+
+        // Demo mode: check against the static STUDENTS list
+        const found = STUDENTS.find(
+          (s) => s.id.toLowerCase() === studentId.trim().toLowerCase() && s.password === password
+        );
+        if (!found) throw new Error("Invalid Student ID or password");
+
+        const email = idToEmail(found.id);
+        const user = { uid: "demo-" + email, email, displayName: found.name };
         localStorage.setItem("cf_user", JSON.stringify(user));
         demoAuthCb && demoAuthCb(user);
         return;
