@@ -68,7 +68,8 @@ const Store = (() => {
           return;
         }
 
-        const found = STUDENTS.find(
+        await studentsReady;
+        if (!STUDENTS.length) throw new Error("Student list could not be loaded (students.csv)");
           (s) => s.id.toLowerCase() === studentId.trim().toLowerCase() && s.password === password
         );
         if (!found) throw new Error("Invalid Student ID or password");
