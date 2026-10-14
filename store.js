@@ -84,3 +84,26 @@ const Store = (() => {
       save(all);
       return id;
     },
+
+    watchOrders(date, cb) {
+      if (live) {
+        return db.collection("orders").where("date", "==", date).onSnapshot((snap) =>
+          cb(snap.docs.map((d) => {
+            const data = d.data();
+            return { id: d.id, ...data, createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : new Date() };
+          }))
+        );
+      }
+      const emit = () => cb(load().filter((o) => o.date === date).map((o) => ({ ...o, createdAt: new Date(o.createdAt) })));
+      emit();
+      window.addEventListener("cf-orders", emit);
+      window.addEventListener("storage", emit);
+      return () => { window.removeEventListener("cf-orders", emit); window.removeEventListener("storage", emit); };
+    },
+
+    async setPaid(id, paid) {
+      if (live) return db.collection("orders").doc(id).update({ paid });
+      save(load().map((o) => (o.id === id ? { ...o, paid } : o)));
+    }
+  };
+})();
