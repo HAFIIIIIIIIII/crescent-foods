@@ -27,11 +27,19 @@
       <div class="hero">
         <div class="big">🍛</div>
         <h2>Order lunch for your child</h2>
-        <p>No more morning rush. Sign in with Gmail, pick the food and place the order in under a minute.</p>
-        <button class="gbtn" id="login">
-          <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.100 0 24s.9 7.600 2.600 10.800l7.900-6.100z"/><path fill="#34A853" d="M24 48c6.500 0 11.900-2.100 15.900-5.800l-7.500-5.800c-2.100 1.400-4.800 2.300-8.400 2.300-6.300 0-11.600-4.100-13.500-9.800l-7.900 6.100C6.500 42.600 14.600 48 24 48z"/></svg>
-          Continue with Google
-        </button>
+        <p>No more morning rush. Sign in with your Student ID, pick the food and place the order in under a minute.</p>
+        <form id="loginForm" class="login-form" novalidate style="max-width:340px;margin:18px auto 0;text-align:left;">
+          <div class="field">
+            <label for="studentId">Student ID</label>
+            <input id="studentId" type="text" placeholder="e.g. CPS2024-0153" autocomplete="username" autocapitalize="characters" maxlength="30">
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="Enter your password" autocomplete="current-password" maxlength="64">
+          </div>
+          <p class="note" id="loginError" style="color:#c0392b;min-height:1.2em;" role="alert"></p>
+          <button class="btn" type="submit" id="login" style="width:100%;">Sign in</button>
+        </form>
         <p class="demo-note hidden" id="demoNote">Demo mode: Firebase is not configured yet, so sign-in is simulated and orders stay in this browser.</p>
       </div>
     </section>
@@ -40,83 +48,3 @@
     <section class="view" id="view-menu">
       <h2 class="section-title">Today's menu</h2>
       <p class="section-sub">Tap Add to put an item in the order.</p>
-      <div class="banner" id="cutoffBanner"></div>
-      <div class="grid" id="menuGrid"></div>
-    </section>
-
-    <!-- 3. CHECKOUT -->
-    <section class="view" id="view-checkout">
-      <div class="panel">
-        <button class="back" id="backToMenu">← Back to menu</button>
-        <h2 class="section-title">Checkout</h2>
-        <p class="section-sub">Tell us who the food is for.</p>
-        <div class="summary" id="summary"></div>
-        <form id="checkoutForm" novalidate>
-          <div class="field">
-            <label for="studentName">Student name</label>
-            <input id="studentName" type="text" placeholder="e.g. Aisha Fathima" autocomplete="off" maxlength="60">
-          </div>
-          <div class="two">
-            <div class="field">
-              <label for="className">Class</label>
-              <select id="className"><option value="">Select</option></select>
-            </div>
-            <div class="field">
-              <label for="division">Division</label>
-              <select id="division"><option value="">Select</option></select>
-            </div>
-          </div>
-          <div class="confirm-wrap" id="confirmWrap">
-            <button class="btn" type="submit" id="confirmBtn">✔ Confirm order</button>
-          </div>
-          <p class="note" id="formNote">Fill in all the details to confirm. Pay in cash at school.</p>
-        </form>
-      </div>
-    </section>
-
-    <!-- 4. SUCCESS -->
-    <section class="view" id="view-success">
-      <div class="panel success">
-        <div class="tickwrap">
-          <svg class="tick" viewBox="0 0 52 52">
-            <circle class="tick-circle" cx="26" cy="26" r="24"/>
-            <path class="tick-check" fill="none" d="M14 27l8 8 16-17"/>
-          </svg>
-        </div>
-        <h2>Order confirmed!</h2>
-        <p class="sub" id="successSub"></p>
-        <div class="receipt" id="receipt"></div>
-        <button class="btn" id="orderAgain">Order again</button>
-      </div>
-    </section>
-  </main>
-
-  <!-- floating cart bar -->
-  <div class="cartbar" id="cartbar">
-    <div class="info"><b id="cartTotal">₹0</b><span id="cartCount">0 items</span></div>
-    <button class="btn gold" id="cartCheckout">Checkout →</button>
-  </div>
-
-  <!-- add-to-cart popup -->
-  <div class="overlay" id="overlay">
-    <div class="popup">
-      <div class="pi">🎉</div>
-      <h3 id="popupTitle">Added to your order</h3>
-      <p id="popupText"></p>
-      <div class="row">
-        <button class="btn light" id="popupContinue">Add more</button>
-        <button class="btn" id="popupProceed">Proceed to checkout</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js"></script>
-  <script src="store.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
