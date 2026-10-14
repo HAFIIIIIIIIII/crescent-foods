@@ -14,14 +14,27 @@ const Store = (() => {
   const STUDENT_DOMAIN = "crescent.school";
   const idToEmail = (id) => id.trim().toLowerCase() + "@" + STUDENT_DOMAIN;
 
-  // ---------- DEMO STUDENT LIST (static data) ----------
-  const STUDENTS = [
-    { id: "CPS001", password: "pass001", name: "Aisha Fathima" },
-    { id: "CPS002", password: "pass002", name: "Rahul Nair" },
-    { id: "CPS003", password: "pass003", name: "Fatima Zahra" },
-    { id: "CPS004", password: "pass004", name: "Arjun Menon" },
-    { id: "CPS005", password: "pass005", name: "Meera Krishnan" }
-  ];
+   // ---------- DEMO STUDENT LIST (loaded from students.csv) ----------
+  let STUDENTS = [];
+
+  function parseCSV(text) {
+    const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
+    const head = lines.shift().split(",").map((h) => h.trim().toLowerCase());
+    return lines.map((line) => {
+      const cols = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+      const row = {};
+      head.forEach((h, i) => (row[h] = cols[i] || ""));
+      return row;
+    });
+  }
+
+  const studentsReady = fetch("students.csv", { cache: "no-store" })
+    .then((r) => {
+      if (!r.ok) throw new Error("students.csv not found");
+      return r.text();
+    })
+    .then((t) => { STUDENTS = parseCSV(t); })
+    .catch((e) => { console.error("Could not load students.csv:", e); });
 
   const todayKey = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
   const isAdmin = (u) =>
