@@ -14,7 +14,7 @@ const Store = (() => {
   const STUDENT_DOMAIN = "crescent.school";
   const idToEmail = (id) => id.trim().toLowerCase() + "@" + STUDENT_DOMAIN;
 
-   // ---------- DEMO STUDENT LIST (loaded from students.csv) ----------
+  // ---------- DEMO STUDENT LIST (loaded from students.csv) ----------
   let STUDENTS = [];
 
   function parseCSV(text) {
@@ -70,6 +70,8 @@ const Store = (() => {
 
         await studentsReady;
         if (!STUDENTS.length) throw new Error("Student list could not be loaded (students.csv)");
+
+        const found = STUDENTS.find(
           (s) => s.id.toLowerCase() === studentId.trim().toLowerCase() && s.password === password
         );
         if (!found) throw new Error("Invalid Student ID or password");
