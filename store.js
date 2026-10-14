@@ -1,243 +1,125 @@
-// Crescent Foods - parent / student ordering page
-(() => {
-  const $ = (id) => document.getElementById(id);
-  const MENU = window.MENU;
-  const rupee = (n) => "₹" + n;
-  let cart = {};          // { itemId: qty }
-  let user = null;
+// Data layer: Firebase when configured, otherwise a localStorage demo mode.
+const FORCE_DEMO = true;   // set to false once Firebase is really set up
 
-  // Stop early with a clear message if index.html is the old version
-  if (!$("loginForm") || !$("studentId") || !$("password") || !$("loginError")) {
-    alert("index.html is still the old version (login form not found). Please replace index.html with the new one.");
-    return;
+const Store = (() => {
+  const cfg = window.FIREBASE_CONFIG || {};
+  const live = !FORCE_DEMO && !!cfg.apiKey && !cfg.apiKey.startsWith("YOUR_") && typeof firebase !== "undefined";
+  let auth, db;
+  if (live) {
+    firebase.initializeApp(cfg);
+    auth = firebase.auth();
+    db = firebase.firestore();
   }
 
-  // ---------- helpers ----------
-  function showView(name) {
-    document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-    // re-trigger animation
-    const el = $("view-" + name);
-    void el.offsetWidth;
-    el.classList.add("active");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    updateCartBar();
-  }
-  function toast(msg) {
-    const t = $("toast");
-    t.textContent = msg;
-    t.classList.add("show");
-    setTimeout(() => t.classList.remove("show"), 2800);
-  }
-  const count = () => Object.values(cart).reduce((a, b) => a + b, 0);
-  const total = () => MENU.reduce((s, m) => s + m.price * (cart[m.id] || 0), 0);
-  const activeView = () => (document.querySelector(".view.active") || {}).id;
+  const STUDENT_DOMAIN = "crescent.school";
+  const idToEmail = (id) => id.trim().toLowerCase() + "@" + STUDENT_DOMAIN;
 
-  // Student ID is the part before "@" in the account email
-  const studentIdOf = (u) => (u && u.email ? u.email.split("@")[0].toUpperCase() : "");
+  // ---------- DEMO STUDENT LIST (static data) ----------
+  const STUDENTS = [
+    { id: "CPS001", password: "pass001", name: "Aisha Fathima" },
+    { id: "CPS002", password: "pass002", name: "Rahul Nair" },
+    { id: "CPS003", password: "pass003", name: "Fatima Zahra" },
+    { id: "CPS004", password: "pass004", name: "Arjun Menon" },
+    { id: "CPS005", password: "pass005", name: "Meera Krishnan" }
+  ];
 
-  function cutoffPassed() {
-    const c = window.ORDER_CUTOFF;
-    if (!c) return false;
-    const [h, m] = c.split(":").map(Number);
-    const now = new Date();
-    return now.getHours() * 60 + now.getMinutes() > h * 60 + m;
-  }
-  function fmtCutoff(c) {
-    const [h, m] = c.split(":").map(Number);
-    return (h % 12 || 12) + ":" + String(m).padStart(2, "0") + (h >= 12 ? " PM" : " AM");
-  }
+  const todayKey = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+  const isAdmin = (u) =>
+    !!u && (window.ADMIN_EMAILS || []).map((e) => e.toLowerCase()).includes((u.email || "").toLowerCase());
 
-  // ---------- menu ----------
-  function renderMenu() {
-    const grid = $("menuGrid");
-    const closed = cutoffPassed();
-    grid.innerHTML = "";
-    MENU.forEach((m) => {
-      const q = cart[m.id] || 0;
-      const card = document.createElement("div");
-      card.className = "food";
-      card.innerHTML = `
-        <div class="emoji">${m.emoji}</div>
-        <h3>${m.name}</h3>
-        <p>${m.desc}</p>
-        <div class="price">${rupee(m.price)} <small>per plate</small></div>
-        <div class="actions"></div>`;
-      const actions = card.querySelector(".actions");
-      if (q === 0) {
-        const b = document.createElement("button");
-        b.className = "btn";
-        b.textContent = closed ? "Orders closed" : "+ Add";
-        b.disabled = closed;
-        b.onclick = () => { change(m.id, 1); openPopup(m); };
-        actions.appendChild(b);
-      } else {
-        actions.innerHTML = `<div class="stepper"><button aria-label="Remove one">−</button><span>${q}</span><button aria-label="Add one">+</button></div>`;
-        const [minus, , plus] = actions.querySelector(".stepper").children;
-        minus.onclick = () => change(m.id, -1);
-        plus.onclick = () => change(m.id, 1);
+  // ---------- demo helpers ----------
+  const load = () => JSON.parse(localStorage.getItem("cf_orders") || "[]");
+  const save = (o) => { localStorage.setItem("cf_orders", JSON.stringify(o)); window.dispatchEvent(new Event("cf-orders")); };
+  let demoAuthCb = null;
+  const demoUser = () => JSON.parse(localStorage.getItem("cf_user") || "null");
+
+  return {
+    live,
+    todayKey,
+    isAdmin,
+
+    onAuth(cb) {
+      if (live) return auth.onAuthStateChanged(cb);
+      demoAuthCb = cb;
+      cb(demoUser());
+    },
+
+    // signIn(studentId, password)  -> student login
+    // signIn()                     -> admin login (Google in live mode, prompt in demo mode)
+    async signIn(studentId, password) {
+      if (studentId !== undefined) {
+        if (!studentId.trim() || !password) throw new Error("Missing Student ID or password");
+
+        if (live) {
+          await auth.signInWithEmailAndPassword(idToEmail(studentId), password);
+          return;
+        }
+
+        const found = STUDENTS.find(
+          (s) => s.id.toLowerCase() === studentId.trim().toLowerCase() && s.password === password
+        );
+        if (!found) throw new Error("Invalid Student ID or password");
+
+        const email = idToEmail(found.id);
+        const user = { uid: "demo-" + email, email, displayName: found.name };
+        localStorage.setItem("cf_user", JSON.stringify(user));
+        demoAuthCb && demoAuthCb(user);
+        return;
       }
-      grid.appendChild(card);
-    });
-    // don't replay the entrance animation on re-render
-    grid.querySelectorAll(".food").forEach((c) => (c.style.animation = "none"));
-  }
 
-  function change(id, d) {
-    cart[id] = Math.max(0, (cart[id] || 0) + d);
-    if (!cart[id]) delete cart[id];
-    renderMenu();
-    updateCartBar(true);
-  }
-
-  function updateCartBar(bump) {
-    const n = count();
-    const show = n > 0 && activeView() === "view-menu";
-    $("cartbar").classList.toggle("show", show);
-    $("cartTotal").textContent = rupee(total());
-    $("cartCount").textContent = n + (n === 1 ? " item" : " items");
-    if (bump && show) {
-      $("cartTotal").classList.remove("bump");
-      void $("cartTotal").offsetWidth;
-      $("cartTotal").classList.add("bump");
-    }
-  }
-
-  // ---------- popup ----------
-  function openPopup(item) {
-    $("popupTitle").textContent = item.name + " added";
-    $("popupText").textContent = `${count()} item(s) in your order · Total ${rupee(total())}`;
-    $("overlay").classList.add("show");
-  }
-  const closePopup = () => $("overlay").classList.remove("show");
-  $("popupContinue").onclick = closePopup;
-  $("popupProceed").onclick = () => { closePopup(); goCheckout(); };
-  $("overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closePopup(); });
-  $("cartCheckout").onclick = goCheckout;
-
-  // ---------- checkout ----------
-  function populateSelects() {
-    const cls = $("className"), div = $("division");
-    ["LKG", "UKG"].concat(Array.from({ length: 12 }, (_, i) => String(i + 1))).forEach((c) => {
-      cls.add(new Option(/\d/.test(c) ? "Class " + c : c, c));
-    });
-    ["A", "B", "C", "D", "E", "F"].forEach((d) => div.add(new Option(d, d)));
-  }
-
-  function goCheckout() {
-    if (!count()) return toast("Add at least one item first");
-    if (cutoffPassed()) return toast("Sorry, orders closed at " + fmtCutoff(window.ORDER_CUTOFF));
-    const rows = MENU.filter((m) => cart[m.id]).map(
-      (m) => `<div class="line"><span>${m.name} × ${cart[m.id]}</span><span>${rupee(m.price * cart[m.id])}</span></div>`
-    ).join("");
-    $("summary").innerHTML = rows + `<div class="line total"><span>Total to pay at school</span><span>${rupee(total())}</span></div>`;
-    validate();
-    showView("checkout");
-  }
-  $("backToMenu").onclick = () => showView("menu");
-
-  const formValid = () =>
-    $("studentName").value.trim().length >= 2 && $("className").value && $("division").value;
-  function validate() {
-    const ok = !!formValid();
-    $("confirmWrap").classList.toggle("show", ok);
-    $("formNote").classList.toggle("hidden", ok);
-  }
-  ["input", "change"].forEach((ev) => $("checkoutForm").addEventListener(ev, validate));
-
-  $("checkoutForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!formValid()) return;
-    if (cutoffPassed()) return toast("Sorry, orders are closed for today");
-    const btn = $("confirmBtn");
-    btn.disabled = true;
-    btn.textContent = "Placing order…";
-    const items = MENU.filter((m) => cart[m.id]).map((m) => ({ id: m.id, name: m.name, price: m.price, qty: cart[m.id] }));
-    const order = {
-      uid: user.uid,
-      email: user.email,
-      studentId: studentIdOf(user),
-      studentName: $("studentName").value.trim(),
-      className: $("className").value,
-      division: $("division").value,
-      items,
-      total: total()
-    };
-    try {
-      const id = await Store.placeOrder(order);
-      showSuccess(order, id);
-      cart = {};
-      $("checkoutForm").reset();
-      renderMenu();
-    } catch (err) {
-      console.error(err);
-      toast("Could not place the order. Please try again.");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "✔ Confirm order";
-    }
-  });
-
-  // ---------- success ----------
-  function showSuccess(o, id) {
-    $("successSub").textContent = `${o.studentName} · ${/\d/.test(o.className) ? "Class " : ""}${o.className} ${o.division}`;
-    $("receipt").innerHTML =
-      o.items.map((i) => `<div class="line"><span>${i.name} × ${i.qty}</span><span>${rupee(i.price * i.qty)}</span></div>`).join("") +
-      `<div class="line total"><span>Pay in cash at school</span><span>${rupee(o.total)}</span></div>` +
-      `<div class="line" style="opacity:.6;font-size:12px"><span>Order ID</span><span>${String(id).slice(0, 8).toUpperCase()}</span></div>`;
-    showView("success");
-  }
-  $("orderAgain").onclick = () => showView("menu");
-
-  // ---------- auth: Student ID + password ----------
-  const loginError = $("loginError");
-
-  $("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    loginError.textContent = "";
-    const id = $("studentId").value.trim();
-    const pw = $("password").value;
-    if (!id || !pw) {
-      loginError.textContent = "Enter your Student ID and password.";
-      return;
-    }
-    const btn = $("login");
-    btn.disabled = true;
-    btn.textContent = "Signing in…";
-    try {
-      await Store.signIn(id, pw);
-      $("password").value = "";
-    } catch (err) {
-      console.error("Login error:", err);
-      loginError.textContent = "Login failed: " + (err && err.message ? err.message : "Incorrect Student ID or password.");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Sign in";
-    }
-  });
-
-  $("logout").onclick = () => { cart = {}; Store.signOut(); };
-  if (!Store.live) $("demoNote").classList.remove("hidden");
-
-  Store.onAuth((u) => {
-    user = u;
-    $("userbox").classList.toggle("hidden", !u);
-    if (u) {
-      $("who").textContent = studentIdOf(u);
-      const closed = cutoffPassed();
-      const b = $("cutoffBanner");
-      b.classList.toggle("closed", closed);
-      b.classList.toggle("hidden", !window.ORDER_CUTOFF);
-      if (window.ORDER_CUTOFF) {
-        b.textContent = closed
-          ? "Orders for today closed at " + fmtCutoff(window.ORDER_CUTOFF) + "."
-          : "Order before " + fmtCutoff(window.ORDER_CUTOFF) + " today.";
+      // Admin login (no arguments)
+      if (live) {
+        await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        return;
       }
-      renderMenu();
-      showView("menu");
-    } else {
-      showView("login");
-    }
-  });
+      const email = prompt("DEMO MODE - enter the admin email to sign in.\n(Admin demo: " + (window.ADMIN_EMAILS || [])[0] + ")");
+      if (!email) return;
+      const user = { uid: "demo-" + email.toLowerCase(), email: email.trim(), displayName: email.split("@")[0] };
+      localStorage.setItem("cf_user", JSON.stringify(user));
+      demoAuthCb && demoAuthCb(user);
+    },
 
-  populateSelects();
+    async signOut() {
+      if (live) return auth.signOut();
+      localStorage.removeItem("cf_user");
+      demoAuthCb && demoAuthCb(null);
+    },
+
+    async placeOrder(o) {
+      const order = { ...o, date: todayKey(), paid: false };
+      if (live) {
+        const ref = await db.collection("orders").add({
+          ...order,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return ref.id;
+      }
+      const id = "D" + Date.now().toString(36).toUpperCase();
+      const all = load();
+      all.push({ ...order, id, createdAt: new Date().toISOString() });
+      save(all);
+      return id;
+    },
+
+    watchOrders(date, cb) {
+      if (live) {
+        return db.collection("orders").where("date", "==", date).onSnapshot((snap) =>
+          cb(snap.docs.map((d) => {
+            const data = d.data();
+            return { id: d.id, ...data, createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : new Date() };
+          }))
+        );
+      }
+      const emit = () => cb(load().filter((o) => o.date === date).map((o) => ({ ...o, createdAt: new Date(o.createdAt) })));
+      emit();
+      window.addEventListener("cf-orders", emit);
+      window.addEventListener("storage", emit);
+      return () => { window.removeEventListener("cf-orders", emit); window.removeEventListener("storage", emit); };
+    },
+
+    async setPaid(id, paid) {
+      if (live) return db.collection("orders").doc(id).update({ paid });
+      save(load().map((o) => (o.id === id ? { ...o, paid } : o)));
+    }
+  };
 })();
