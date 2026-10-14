@@ -26,6 +26,9 @@
   const total = () => MENU.reduce((s, m) => s + m.price * (cart[m.id] || 0), 0);
   const activeView = () => (document.querySelector(".view.active") || {}).id;
 
+  // Student ID is stored as the part before "@" in the account email
+  const studentIdOf = (u) => (u && u.email ? u.email.split("@")[0].toUpperCase() : "");
+
   function cutoffPassed() {
     const c = window.ORDER_CUTOFF;
     if (!c) return false;
@@ -146,6 +149,7 @@
     const order = {
       uid: user.uid,
       email: user.email,
+      studentId: studentIdOf(user),            // CHANGED: Student ID saved with the order
       studentName: $("studentName").value.trim(),
       className: $("className").value,
       division: $("division").value,
@@ -178,8 +182,33 @@
   }
   $("orderAgain").onclick = () => showView("menu");
 
-  // ---------- auth ----------
-  $("login").onclick = () => Store.signIn().catch((e) => { console.error(e); toast("Sign-in failed. Please try again."); });
+  // ---------- auth (CHANGED: Student ID + password) ----------
+  const loginError = $("loginError");
+
+  $("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.textContent = "";
+    const id = $("studentId").value.trim();
+    const pw = $("password").value;
+    if (!id || !pw) {
+      loginError.textContent = "Enter your Student ID and password.";
+      return;
+    }
+    const btn = $("login");
+    btn.disabled = true;
+    btn.textContent = "Signing in…";
+    try {
+      await Store.signIn(id, pw);
+      $("password").value = "";
+    } catch (err) {
+      console.error(err);
+      loginError.textContent = "Incorrect Student ID or password.";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    }
+  });
+
   $("logout").onclick = () => { cart = {}; Store.signOut(); };
   if (!Store.live) $("demoNote").classList.remove("hidden");
 
@@ -187,7 +216,7 @@
     user = u;
     $("userbox").classList.toggle("hidden", !u);
     if (u) {
-      $("who").textContent = u.displayName || u.email;
+      $("who").textContent = studentIdOf(u);   // CHANGED: show Student ID
       const closed = cutoffPassed();
       const b = $("cutoffBanner");
       b.classList.toggle("closed", closed);
